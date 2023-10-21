@@ -12,8 +12,12 @@
 	"require": {
 		"php": "^8.2.0",
 		"joomla/database": "^3.0.0",
-		"joomla/http": "^3.0.0",
+		"guzzlehttp/guzzle": "^7.8.0",
+		"http-interop/http-factory-guzzle": "^1.2.0",
+		"knplabs/github-api": "^3.12",
 		"mnapoli/silly": "^1.8.3",
+		"pimple/pimple": "3.5.0",
+		"symfony/cache": "^6.2",
 		"vlucas/phpdotenv": "^5.5.0"
 	},
 	"autoload": {
