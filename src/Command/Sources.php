@@ -11,9 +11,12 @@ class Sources
 {
 	use IoStyleTrait;
 
-	public function __construct(private DatabaseDriver $db, private Client $gitHub) {}
+	public function __construct(private DatabaseDriver $db, private Client $gitHub, private Generate $generateCommand) {}
 
-	public function __invoke(InputInterface $input, OutputInterface $output, bool $latest = false)
+	public function __invoke(
+		InputInterface $input, OutputInterface $output,
+		bool $latest = false, bool $process = false
+	)
 	{
 		$this->initIo($input, $output);
 
@@ -83,6 +86,11 @@ class Sources
 			);
 
 			$this->updateSource('joomla', $jVersion, $downloadUrl);
+
+			if ($process)
+			{
+				call_user_func($this->generateCommand, 'joomla', $jVersion, false, true);
+			}
 		}
 	}
 

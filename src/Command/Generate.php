@@ -16,6 +16,7 @@ use wapmorgan\UnifiedArchive\UnifiedArchive;
 class Generate
 {
 	use IoStyleTrait;
+	use CmsNamesTrait;
 
 	private const IMPORTANT_EXTENSIONS = ['php', 'inc', 'ini', 'xml', 'js', 'es6', 'mjs', 'json'];
 
@@ -63,16 +64,6 @@ class Generate
 		}
 	}
 
-	private function getCmsName(string $tag): string
-	{
-		return match ($tag)
-		{
-			'joomla' => 'Joomla!',
-			'wordpress' => 'WordPress',
-			default => ucfirst($tag)
-		};
-	}
-
 	private function haveChecksumsFor(string $cms, string $version): bool
 	{
 		$db    = $this->db;
@@ -91,11 +82,9 @@ class Generate
 	private function processAll(string $cms, bool $new = false): void
 	{
 		$db       = $this->db;
-		$query    = $db->getQuery(true)
-			->select($db->quoteName('version'))
-			->from($db->quoteName('sources'))
-			->where($db->quoteName('cms') . ' = :cms')
-			->bind(
+		$query    = $db->getQuery(true)->select($db->quoteName('version'))->from($db->quoteName('sources'))->where(
+				$db->quoteName('cms') . ' = :cms'
+			)->bind(
 				':cms', $cms
 			);
 		$versions = $db->setQuery($query)->loadColumn() ?: [];
@@ -162,8 +151,8 @@ class Generate
 				$this->io->error(
 					[
 						sprintf(
-							'Downloading %s %s from %s failed. HTTP %s.',
-							$this->getCmsName($cms), $version, $downloadUrl, $response->getStatusCode()
+							'Downloading %s %s from %s failed. HTTP %s.', $this->getCmsName($cms), $version,
+							$downloadUrl, $response->getStatusCode()
 						),
 					]
 				);
@@ -193,22 +182,17 @@ class Generate
 			$tempFile, $format, [
 			Abilities::EXTRACT_CONTENT,
 			Abilities::STREAM_CONTENT,
-		],
-			driver: $driver
+		], driver: $driver
 		);
 
 		// Remove existing checksums
 		$db    = $this->db;
-		$query = $db->getQuery(true)
-			->delete($db->quoteName('checksums'))
-			->where(
+		$query = $db->getQuery(true)->delete($db->quoteName('checksums'))->where(
 				[
 					$db->quoteName('cms') . ' = :cms',
 					$db->quoteName('version') . ' = :version',
 				]
-			)
-			->bind(':cms', $cms)
-			->bind(':version', $version);
+			)->bind(':cms', $cms)->bind(':version', $version);
 		$db->setQuery($query)->execute();
 
 		// Calculate all new checksums
@@ -252,17 +236,12 @@ class Generate
 	private function getDownloadURL(string $cms, string $version): ?string
 	{
 		$db    = $this->db;
-		$query = $db->getQuery(true)
-			->select($db->quoteName('url'))
-			->from($db->quoteName('sources'))
-			->where(
+		$query = $db->getQuery(true)->select($db->quoteName('url'))->from($db->quoteName('sources'))->where(
 				[
 					$db->quoteName('cms') . ' = :cms',
 					$db->quoteName('version') . ' = :version',
 				]
-			)
-			->bind(':cms', $cms)
-			->bind(':version', $version);
+			)->bind(':cms', $cms)->bind(':version', $version);
 
 		return $db->setQuery($query)->loadResult() ?: null;
 	}
