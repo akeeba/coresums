@@ -24,7 +24,22 @@ $app->command('sources [--latest]', 'command.sources')
 	->descriptions(
 		'Collect source URLs for new Joomla! releases',
 		[
-				'--latest' => 'Only go through the latest 30 releases'
+			'--latest' => 'Only go through the 30 latest releases',
+		]
+	);
+$app->command('generate [cms] [cmsVersion] [--all] [--new]', 'command.generate')
+	->defaults(
+		[
+			'cms' => 'joomla',
+		]
+	)
+	->descriptions(
+		'Generate the file checksums',
+		[
+			'cms'        => 'The CMS to process.',
+			'cmsVersion' => 'The CMS version to process.',
+			'--all'      => 'Process all versions of the CMS (SLOW!)',
+			'--new'      => 'Only process versions without existing checksums',
 		]
 	);
 

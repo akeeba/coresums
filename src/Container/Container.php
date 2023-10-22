@@ -2,6 +2,7 @@
 
 namespace Akeeba\CoreSums\Container;
 
+use Akeeba\CoreSums\HttpFactory\HttpFactory;
 use Dotenv\Dotenv;
 use Github\Client as GitHubClient;
 use Joomla\Database\Sqlite\SqliteDriver;
@@ -15,6 +16,7 @@ use Psr\Cache\CacheItemPoolInterface;
  * @property-read Dotenv                 $dotenv
  * @property-read CacheItemPoolInterface $cachePool
  * @property-read GitHubClient           $gitHub
+ * @property-read HttpFactory            $httpFactory
  *
  * @since  1.0.0
  */
@@ -28,6 +30,7 @@ class Container extends PimpleContainer
 		$this->register(new DotenvProvider());
 		$this->register(new CachePoolProvider());
 		$this->register(new GitHubProvider());
+		$this->register(new HttpFactoryProvider());
 
 		$this->register(new CommandsProvider());
 	}
