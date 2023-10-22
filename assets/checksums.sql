@@ -1,11 +1,4 @@
-create table sources
-(
-    cms     TEXT default 'joomla' not null,
-    version TEXT                  not null,
-    url     TEXT                  not null
-);
-
-create table checksums
+create table if not exists checksums
 (
     cms           text default 'joomla' not null,
     version       text                  not null,

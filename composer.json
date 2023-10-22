@@ -2,7 +2,7 @@
 	"name": "akeeba/coresums",
 	"description": "Generate checksums for core files of various Joomla! versions",
 	"minimum-stability": "stable",
-	"license": "GPL-3.0-or-later",
+	"license": "AGPL-3.0-or-later",
 	"authors": [
 		{
 			"name": "Nicholas K. Dionysopoulos",
