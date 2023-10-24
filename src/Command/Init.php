@@ -11,7 +11,7 @@ class Init
 	use IoStyleTrait;
 	use CmsNamesTrait;
 
-	public function __construct(private DatabaseDriver $db) {}
+	public function __construct(private readonly DatabaseDriver $db) {}
 
 	public function __invoke(InputInterface $input, OutputInterface $output, ?string $sourceFolder = null)
 	{

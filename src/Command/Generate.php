@@ -20,7 +20,7 @@ class Generate
 
 	private const IMPORTANT_EXTENSIONS = ['php', 'inc', 'ini', 'xml', 'js', 'es6', 'mjs', 'json'];
 
-	public function __construct(private DatabaseDriver $db, private HttpFactory $httpFactory) {}
+	public function __construct(private readonly DatabaseDriver $db, private readonly HttpFactory $httpFactory) {}
 
 	public function __invoke(
 		InputInterface $input, OutputInterface $output, string $cms = 'joomla', ?string $cmsVersion = '',

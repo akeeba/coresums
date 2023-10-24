@@ -22,18 +22,19 @@ $app->useContainer(new Psr11ContainerWrapper($container));
 
 $app->command('init [sourceFolder]', 'command.init')
 	->descriptions(
-			'Initialises the sums.sqlite database file.',
+		'Initialises the sums.sqlite database file.',
 		[
-				'sourceFolder' => 'Import data from the output folder of a previous dump --sources [--gzip] command'
+			'sourceFolder' => 'Import data from the output folder of a previous dump --sources [--gzip] command',
 		]
 	);
 
-$app->command('sources [--latest] [--process]', 'command.sources')
+$app->command('sources [--latest] [--process] [--dump=]', 'command.sources')
 	->descriptions(
 		'Collect source URLs for new Joomla! releases.',
 		[
 			'--latest'  => 'Only go through the 30 latest releases',
 			'--process' => 'Create checksums for the sources found',
+			'--dump'    => 'Dump (gzipped) JSON files for the sources found into this base folder',
 		]
 	);
 

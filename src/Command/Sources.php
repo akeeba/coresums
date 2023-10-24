@@ -11,11 +11,16 @@ class Sources
 {
 	use IoStyleTrait;
 
-	public function __construct(private DatabaseDriver $db, private Client $gitHub, private Generate $generateCommand) {}
+	public function __construct(
+		readonly private DatabaseDriver $db,
+		readonly private Client $gitHub,
+		readonly private Generate $generateCommand,
+		readonly private Dump $dumpCommand
+	) {}
 
 	public function __invoke(
 		InputInterface $input, OutputInterface $output,
-		bool $latest = false, bool $process = false
+		bool $latest = false, bool $process = false, ?string $dump = null
 	)
 	{
 		$this->initIo($input, $output);
@@ -53,6 +58,8 @@ class Sources
 
 		$this->io->info('Locating full installation ZIP files');
 
+		$countAddedOrChanged = 0;
+
 		/**
 		 * @var array $release
 		 * @see https://docs.github.com/en/rest/releases/releases?apiVersion=2022-11-28
@@ -85,16 +92,33 @@ class Sources
 				sprintf('Joomla! %s -- %s', $jVersion, $downloadUrl)
 			);
 
-			$this->updateSource('joomla', $jVersion, $downloadUrl);
+			$updatedOrAdded = $this->updateSource('joomla', $jVersion, $downloadUrl);
 
-			if ($process)
+			if ($updatedOrAdded)
 			{
-				call_user_func($this->generateCommand, 'joomla', $jVersion, false, true);
+				$this->io->writeln('  Added to sources');
 			}
+
+			if ($updatedOrAdded && $process)
+			{
+				$this->io->writeln('  Processing');
+				call_user_func($this->generateCommand, $input, $output, 'joomla', $jVersion, false, true);
+			}
+
+			if ($updatedOrAdded)
+			{
+				$countAddedOrChanged++;
+				$this->io->writeln('');
+			}
+		}
+
+		if (!empty($dump) && $countAddedOrChanged > 0)
+		{
+			call_user_func($this->dumpCommand, $input, $output, $dump, true, false, true);
 		}
 	}
 
-	private function updateSource(string $cms, string $version, string $url): void
+	private function updateSource(string $cms, string $version, string $url): bool
 	{
 		$db = $this->db;
 
@@ -114,7 +138,7 @@ class Sources
 
 		if ($existingUrl === $url)
 		{
-			return;
+			return false;
 		}
 
 		$query = $db->getQuery(true)
@@ -136,5 +160,7 @@ class Sources
 		];
 
 		$db->insertObject('sources', $o);
+
+		return true;
 	}
 }

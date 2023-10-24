@@ -21,12 +21,12 @@ class CommandsProvider implements ServiceProviderInterface
 			$c['db'], $c['httpFactory']
 		);
 
-		$pimple['command.sources'] = fn(Container $c) => new Sources(
-			$c['db'], $c['gitHub'], $c['command.gennerate']
-		);
-
 		$pimple['command.dump'] = fn(Container $c) => new Dump(
 			$c['db']
+		);
+
+		$pimple['command.sources'] = fn(Container $c) => new Sources(
+			$c['db'], $c['gitHub'], $c['command.generate'], $c['command.dump']
 		);
 	}
 }
