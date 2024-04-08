@@ -200,6 +200,9 @@ class Generate
 			)->bind(':cms', $cms)->bind(':version', $version);
 		$db->setQuery($query)->execute();
 
+		$progressBar = $this->io->createProgressBar($archive->count());
+		$progressBar->start();
+
 		// Calculate all new checksums
 		foreach ($archive->getFiles() as $filename)
 		{
@@ -211,7 +214,8 @@ class Generate
 				continue;
 			}
 
-			$this->io->writeln($filename);
+			$progressBar->advance();
+			$progressBar->setMessage($filename);
 
 			$fileContents     = $archive->getFileContent($filename);
 			$squashedContents = $this->squashContents($fileContents);
@@ -232,6 +236,8 @@ class Generate
 
 			$db->insertObject('checksums', $o);
 		}
+
+		$progressBar->finish();
 
 		unset($archive);
 
