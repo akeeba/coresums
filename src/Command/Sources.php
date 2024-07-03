@@ -117,7 +117,7 @@ class Sources
 			}
 		}
 
-		if (!empty($dump) && $countAddedOrChanged > 0)
+		if (!empty($dump))
 		{
 			call_user_func($this->dumpCommand, $input, $output, $dump, true, false, true);
 		}
