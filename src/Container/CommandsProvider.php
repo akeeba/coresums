@@ -11,6 +11,7 @@ use Akeeba\CoreSums\Command\Dump;
 use Akeeba\CoreSums\Command\Generate;
 use Akeeba\CoreSums\Command\Init;
 use Akeeba\CoreSums\Command\Sources;
+use Akeeba\CoreSums\Command\Versions;
 use Pimple\Container;
 use Pimple\ServiceProviderInterface;
 
@@ -33,5 +34,10 @@ class CommandsProvider implements ServiceProviderInterface
 		$pimple['command.sources'] = fn(Container $c) => new Sources(
 			$c['db'], $c['gitHub'], $c['command.generate'], $c['command.dump']
 		);
+
+		$pimple['command.versions'] = fn(Container $c) => new Versions(
+			$c['db']
+		);
+
 	}
 }

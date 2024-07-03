@@ -65,6 +65,14 @@ $app->command('dump [outdir] [--sources] [--no-sums] [--gzip]', 'command.dump')
 		]
 	);
 
+$app->command('versions [cms]', 'command.versions')
+	->descriptions(
+		'Displays the known versions of a cms.',
+		[
+			'cms' => 'Which CMS to display versions for',
+		]
+	);
+
 $app->setDefaultCommand('init');
 
 try
