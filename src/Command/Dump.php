@@ -76,7 +76,7 @@ class Dump
 			@unlink($targetFile);
 		}
 
-		mkdir(dirname($targetFile), 0755, true);
+		@mkdir(dirname($targetFile), 0755, true);
 
 		$db    = $this->db;
 		$query = $db->getQuery(true)
@@ -110,7 +110,10 @@ class Dump
 			)
 			->from('sources');
 
-		foreach ($db->setQuery($query)->loadObjectList() ?: [] as $what)
+		$allCMSVersions = $db->setQuery($query)->loadObjectList() ?: [];
+		$allCMSVersions = array_reverse($allCMSVersions);
+
+		foreach ($allCMSVersions as $what)
 		{
 			$this->io->writeln(
 				sprintf('Dumping checksums for %s %s', $this->getCmsName($what->cms), $what->version)
@@ -123,7 +126,11 @@ class Dump
 	private function dumpCmsVersionChecksums($cms, $version, string $outDir, bool $gzip = false)
 	{
 		$subDir = $outDir . '/' . $cms . '/' . $version;
-		@mkdir($subDir, 0755, true);
+
+		if (!is_dir($subDir))
+		{
+			@mkdir($subDir, 0755, true);
+		}
 
 		$db = $this->db;
 
@@ -143,6 +150,16 @@ class Dump
 		)
 		{
 			$this->io->write(' ' . $type);
+
+			$targetFile = $subDir . '/' . $type . '.json' . ($gzip ? '.gz' : '');
+
+			if (file_exists($targetFile))
+			{
+				$this->io->write('↩️');
+
+				continue;
+			}
+
 			$query = $db->getQuery(true)
 				->select(
 					[
@@ -160,18 +177,16 @@ class Dump
 				->bind(':version', $version);
 
 			$data = $db->setQuery($query)->loadAssocList('filename', 'hash');
-
-			$json       = json_encode($data);
-			$targetFile = $subDir . '/' . $type . '.json';
+			$json = json_encode($data);
 
 			if ($gzip)
 			{
-				file_put_contents($targetFile . '.gz', gzcompress($json, 9, ZLIB_ENCODING_GZIP));
+				$json = gzcompress($json, 9, ZLIB_ENCODING_GZIP);
 			}
-			else
-			{
-				file_put_contents($targetFile, $json);
-			}
+
+			$result = file_put_contents($targetFile, $json);
+
+			$this->io->write($result ? '✅' : '❌');
 		}
 
 		$this->io->writeln('');
