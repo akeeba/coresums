@@ -1,5 +1,5 @@
 .env
-
+/.idea/laravel-idea.xml
 /tmp/**
 /vendor/**
 /sums.sqlite
