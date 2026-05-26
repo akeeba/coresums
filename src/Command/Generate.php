@@ -229,6 +229,11 @@ class Generate
 			$fileContents     = $archive->getFileContent($filename);
 			$squashedContents = $this->squashContents($fileContents);
 
+			if ($cms === 'wordpress' && str_starts_with($filename, 'wordpress/'))
+			{
+				$filename = substr($filename, 10);
+			}
+
 			$o = (object) [
 				'cms'           => $cms,
 				'version'       => $version,
