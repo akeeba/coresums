@@ -62,7 +62,7 @@ $app->command('dump [outdir] [--sources] [--no-sums] [--gzip]', 'command.dump')
 		'Dump sums and/or sources as JSON data files.',
 		[
 			'outdir'    => 'The root folder where the structure of JSON files will be created in',
-			'--sources' => 'Create a Joomla! download source JSON file',
+			'--sources' => 'Create the CMS download sources JSON file',
 			'--no-sums' => 'Do not create the checksum JSON files',
 			'--gzip'    => 'Generate GZip–compressed JSON files instead of plain text ones',
 		]

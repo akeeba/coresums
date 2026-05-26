@@ -38,7 +38,7 @@ class Generate
 		{
 			$this->io->error('You must tell me which version to process or use --all');
 
-			return;
+			return 1;
 		}
 
 		if ($all)
@@ -67,6 +67,8 @@ class Generate
 				sprintf('Finished processing %s %s', $this->getCmsName($cms), $cmsVersion)
 			);
 		}
+
+		return 0;
 	}
 
 	private function haveChecksumsFor(string $cms, string $version): bool

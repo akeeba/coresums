@@ -43,5 +43,7 @@ class Versions
 		$versions = array_map(fn($x) => [$x], $versions);
 
 		$this->io->table(['version'], $versions);
+
+		return 0;
 	}
 }

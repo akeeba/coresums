@@ -41,6 +41,8 @@ class Init
 		$this->io->info('Importing pre-existing checksums');
 
 		$this->importAllChecksums($sourceFolder);
+
+		return 0;
 	}
 
 	private function importSources(string $sourceFolder): void
