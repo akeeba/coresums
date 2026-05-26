@@ -32,7 +32,7 @@ class CommandsProvider implements ServiceProviderInterface
 		);
 
 		$pimple['command.sources'] = fn(Container $c) => new Sources(
-			$c['db'], $c['gitHub'], $c['command.generate'], $c['command.dump']
+			$c['db'], $c['httpFactory'], $c['gitHub'], $c['command.generate'], $c['command.dump']
 		);
 
 		$pimple['command.versions'] = fn(Container $c) => new Versions(

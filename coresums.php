@@ -28,15 +28,18 @@ $app->command('init [sourceFolder]', 'command.init')
 		]
 	);
 
-$app->command('sources [--latest] [--process] [--dump=]', 'command.sources')
-	->descriptions(
-		'Collect source URLs for new Joomla! releases.',
-		[
-			'--latest'  => 'Only go through the 30 latest releases',
-			'--process' => 'Create checksums for the sources found',
-			'--dump'    => 'Dump (gzipped) JSON files for the sources found into this base folder',
-		]
-	);
+$app->command('sources [-l|--latest] [-p|--process] [-d|--dump=]', 'command.sources')
+		->descriptions(
+				'Collect source URLs for new Joomla! releases.',
+				[
+						'--latest'    => 'Only go through the 30 latest releases',
+						'--process'   => 'Create checksums for the sources found',
+						'--dump'      => 'Dump (gzipped) JSON files for the sources found into this base folder',
+				]
+		)
+		->addOption('joomla', 'j', \Silly\Input\InputOption::VALUE_NEGATABLE, 'Discover Joomla! releases (default)', true)
+		->addOption('wordpress', 'w', \Silly\Input\InputOption::VALUE_NEGATABLE, 'Discover WordPress releases (default)', true)
+;
 
 $app->command('generate [cms] [cmsVersion] [--all] [--new]', 'command.generate')
 	->defaults(
