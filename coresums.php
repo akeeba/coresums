@@ -28,15 +28,18 @@ $app->command('init [sourceFolder]', 'command.init')
 		]
 	);
 
-$app->command('sources [--latest] [--process] [--dump=]', 'command.sources')
-	->descriptions(
-		'Collect source URLs for new Joomla! releases.',
-		[
-			'--latest'  => 'Only go through the 30 latest releases',
-			'--process' => 'Create checksums for the sources found',
-			'--dump'    => 'Dump (gzipped) JSON files for the sources found into this base folder',
-		]
-	);
+$app->command('sources [-l|--latest] [-p|--process] [-d|--dump=]', 'command.sources')
+		->descriptions(
+				'Collect source URLs for new Joomla! releases.',
+				[
+						'--latest'    => 'Only go through the 30 latest releases',
+						'--process'   => 'Create checksums for the sources found',
+						'--dump'      => 'Dump (gzipped) JSON files for the sources found into this base folder',
+				]
+		)
+		->addOption('joomla', 'j', \Silly\Input\InputOption::VALUE_NEGATABLE, 'Discover Joomla! releases (default)', true)
+		->addOption('wordpress', 'w', \Silly\Input\InputOption::VALUE_NEGATABLE, 'Discover WordPress releases (default)', true)
+;
 
 $app->command('generate [cms] [cmsVersion] [--all] [--new]', 'command.generate')
 	->defaults(
@@ -59,7 +62,7 @@ $app->command('dump [outdir] [--sources] [--no-sums] [--gzip]', 'command.dump')
 		'Dump sums and/or sources as JSON data files.',
 		[
 			'outdir'    => 'The root folder where the structure of JSON files will be created in',
-			'--sources' => 'Create a Joomla! download source JSON file',
+			'--sources' => 'Create the CMS download sources JSON file',
 			'--no-sums' => 'Do not create the checksum JSON files',
 			'--gzip'    => 'Generate GZip–compressed JSON files instead of plain text ones',
 		]

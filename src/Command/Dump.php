@@ -61,12 +61,14 @@ class Dump
 
 		if (empty($thingsDone))
 		{
-			$this->io->warning('You told me to do nothing.');
+			$this->io->warning('You told me to do nothing!');
+
+			return 1;
 		}
-		else
-		{
-			$this->io->success('Successful dump');
-		}
+
+		$this->io->success('Successful dump');
+
+		return 0;
 	}
 
 	private function dumpSources(string $targetFile, bool $gzip = false)

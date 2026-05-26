@@ -34,13 +34,15 @@ class Init
 		$sqlCommands = file_get_contents($sqlPath . '/checksums.sql');
 		$db->setQuery($sqlCommands)->execute();
 
-		$this->io->info('Importing sources');
+		$this->io->info('Importing pre-existing sources');
 
 		$this->importSources($sourceFolder);
 
-		$this->io->info('Importing checksums');
+		$this->io->info('Importing pre-existing checksums');
 
 		$this->importAllChecksums($sourceFolder);
+
+		return 0;
 	}
 
 	private function importSources(string $sourceFolder): void
@@ -56,7 +58,7 @@ class Init
 		}
 		else
 		{
-			$this->io->warning('No sources.json[.gz] file found; cannot import sources');
+			$this->io->warning('No sources.json[.gz] file found; no pre-existing sources to import');
 
 			return;
 		}

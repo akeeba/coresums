@@ -38,7 +38,7 @@ class Generate
 		{
 			$this->io->error('You must tell me which version to process or use --all');
 
-			return;
+			return 1;
 		}
 
 		if ($all)
@@ -63,10 +63,14 @@ class Generate
 
 			$this->processVersion($cms, $cmsVersion, $new);
 
+			$this->io->writeln('');
+
 			$this->io->success(
 				sprintf('Finished processing %s %s', $this->getCmsName($cms), $cmsVersion)
 			);
 		}
+
+		return 0;
 	}
 
 	private function haveChecksumsFor(string $cms, string $version): bool
@@ -101,6 +105,8 @@ class Generate
 			);
 
 			$this->processVersion($cms, $version, $new);
+
+			$this->io->writeln('');
 		}
 	}
 
@@ -147,6 +153,9 @@ class Generate
 			$client   = $this->httpFactory->makeClient(cache: false);
 			$response = $client->request(
 				'GET', $downloadUrl, [
+					RequestOptions::HEADERS => [
+						'User-Agent' => 'CoreSums/1.0'
+					],
 					RequestOptions::SINK => $tempFile,
 				]
 			);
@@ -219,6 +228,11 @@ class Generate
 
 			$fileContents     = $archive->getFileContent($filename);
 			$squashedContents = $this->squashContents($fileContents);
+
+			if ($cms === 'wordpress' && str_starts_with($filename, 'wordpress/'))
+			{
+				$filename = substr($filename, 10);
+			}
 
 			$o = (object) [
 				'cms'           => $cms,
