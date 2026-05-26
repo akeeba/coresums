@@ -49,6 +49,8 @@ class Sources
 		{
 			call_user_func($this->dumpCommand, $input, $output, $dump, true, false, true);
 		}
+
+		return 0;
 	}
 
 	/**
