@@ -63,6 +63,8 @@ class Generate
 
 			$this->processVersion($cms, $cmsVersion, $new);
 
+			$this->io->writeln('');
+
 			$this->io->success(
 				sprintf('Finished processing %s %s', $this->getCmsName($cms), $cmsVersion)
 			);
@@ -103,6 +105,8 @@ class Generate
 			);
 
 			$this->processVersion($cms, $version, $new);
+
+			$this->io->writeln('');
 		}
 	}
 
@@ -149,6 +153,9 @@ class Generate
 			$client   = $this->httpFactory->makeClient(cache: false);
 			$response = $client->request(
 				'GET', $downloadUrl, [
+					RequestOptions::HEADERS => [
+						'User-Agent' => 'CoreSums/1.0'
+					],
 					RequestOptions::SINK => $tempFile,
 				]
 			);
