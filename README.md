@@ -28,6 +28,51 @@ php ./coresums.php sources --process
 php ./coresums.php dump --sources
 ```
 
+## Testing
+
+The test suite uses PHPUnit 11 and targets PHP 8.4+. Install dev dependencies and run:
+
+```bash
+composer install
+vendor/bin/phpunit
+```
+
+You can also use the Composer script alias:
+
+```bash
+composer test
+```
+
+### Test layout
+
+Tests live under `tests/` and are split into two suites declared in `phpunit.xml.dist`:
+
+- `tests/Unit/` — fast, isolated tests of pure helpers (CmsNamesTrait, `Generate::squashContents`, the file-extension allowlist, `getDownloadURL`, container providers, the HTTP factory's cache middleware, …).
+- `tests/Integration/` — tests that exercise commands end-to-end against a temp SQLite database (Init, Dump, Versions, Sources, and a golden-fixtures pipeline test for Generate).
+
+Run a single suite:
+
+```bash
+vendor/bin/phpunit --testsuite unit
+vendor/bin/phpunit --testsuite integration
+```
+
+Run a single test class or filter:
+
+```bash
+vendor/bin/phpunit --filter GeneratePipeline
+```
+
+### Fixtures
+
+Test fixtures live in `tests/fixtures/`. The Generate pipeline test builds its archive fixtures programmatically the first time it runs (via `tests/fixtures/build-fixtures.php`); the generated archives are gitignored.
+
+### Notes
+
+- The suite must run **offline**. All HTTP is stubbed with `GuzzleHttp\Handler\MockHandler`, and GitHub API calls are mocked. Do not introduce tests that hit the network.
+- `failOnWarning` and `failOnRisky` are enabled. `failOnDeprecation` is intentionally disabled because some upstream dependencies emit deprecation notices under newer PHP runtimes; these are not bugs in this project.
+- When inserting rows via `Joomla\Database\DatabaseDriver::insertObject`, the second argument is passed by reference — always assign your object to a variable first.
+
 ## Published Checksums and Download URLs
 
 The precompiled checksums and download URLs for each CMS version can always be found on [the Panopticon site](https://getpanopticon.com/checksums/index.html).
