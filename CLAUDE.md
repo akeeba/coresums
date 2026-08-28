@@ -2,7 +2,7 @@
 
 ## Setup
 
-Copy `.env.dist` to `.env` and set a valid `GITHUB_TOKEN` (GitHub personal access
+Copy `env.dist` to `.env` and set a valid `GITHUB_TOKEN` (GitHub personal access
 token). Without it the `sources` command cannot query the GitHub API.
 
 ## Testing
