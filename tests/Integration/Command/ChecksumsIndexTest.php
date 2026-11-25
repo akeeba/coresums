@@ -26,7 +26,7 @@ use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\NullOutput;
 
 /**
- * The checksums table holds about a million rows. Without an index on (cms, version), every per-version query is a
+ * The production database is 2.8 GB. Without an index on (cms, version), every per-version query is a
  * full table scan; on the production host each dump file took ~4.4 minutes, which is what made the nightly run too
  * long to finish (GitHub issue #2).
  */

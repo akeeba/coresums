@@ -17,7 +17,7 @@ final class Schema
 	/**
 	 * Make sure the checksums table has the index every per-version query relies on.
 	 *
-	 * Without it, each query for one CMS version scans the whole table (about a million rows), which took minutes per
+	 * Without it, each query for one CMS version scans the whole table (2.8 GB in production), which took minutes per
 	 * query on the production server. The index also covers `ORDER BY filename`, which Dump uses.
 	 *
 	 * The first call on an existing database builds the index, which takes a while; later calls are instant.

@@ -16,12 +16,26 @@ ones (left by older versions). A 22-byte `.json.gz` file is such an empty dump.
 
 ## The server is IO-starved
 
-Before the `checksums(cms, version, filename)` index existed, each per-version query scanned the whole table and took
-about 4.4 minutes on the server (0.4 s on a development Mac). One nightly run with two new Joomla versions took over an
-hour and was cut short.
+The production `sums.sqlite` is 2.8 GB (November 2026), far larger than a development copy. Disk throughput is about
+10 MB/s: before the `checksums(cms, version, filename)` index existed, each per-version query scanned the whole table
+and took about 4.4 minutes on the server (0.4 s on a development Mac). One nightly run with two new Joomla versions took
+over an hour and was cut short; a manual run dumping two versions took two hours. Merely copying the database takes
+tens of minutes. Building the index on that database took 5 m 51 s (2026-11-25).
 
 **Why:** timings on a development machine say nothing about the server.
 
 **How to apply:** every query on `checksums` must use the index (check with `EXPLAIN QUERY PLAN`). Schema changes must
 reach the existing production database at runtime (see `Akeeba\CoreSums\Database\Schema`), because `init` only runs
 on fresh installs.
+
+## Recovering a version the nightly run missed
+
+`sources --latest` retries a WordPress version only while WordPress' stable-check API lists it as `latest` or
+`outdated`. Once a newer patch release marks it `insecure`, it is never retried.
+
+**Why:** WordPress 5.9.17 and 6.1.12 were published as empty files for months; by the time this was noticed, both were
+`insecure`, so the nightly run could no longer fix them.
+
+**How to apply:** for such a version run `php coresums.php generate <cms> <version> --new`, then
+`php coresums.php dump <published folder> --gzip`. Dump replaces empty files but never rewrites non-empty ones. To find
+damaged versions, HEAD one checksum type for every version in `sources.json.gz` and flag 404s and 22-byte files.
