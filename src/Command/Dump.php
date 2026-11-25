@@ -17,7 +17,14 @@ class Dump
 	use IoStyleTrait;
 	use CmsNamesTrait;
 
-	public function __construct(private readonly DatabaseDriver $db) {}
+	/**
+	 * @param   DatabaseDriver  $db             The database
+	 * @param   string|null     $defaultOutDir  Output folder when none is given; defaults to tmp/dump
+	 */
+	public function __construct(
+		private readonly DatabaseDriver $db,
+		private readonly ?string $defaultOutDir = null
+	) {}
 
 	public function __invoke(
 		InputInterface $input, OutputInterface $output,
@@ -32,9 +39,9 @@ class Dump
 
 		if ($outDir === false)
 		{
-			$outDir = __DIR__ . '/../../tmp/dump';
+			$outDir = $this->defaultOutDir ?? __DIR__ . '/../../tmp/dump';
 
-			if (is_dir($outDir))
+			if (!is_dir($outDir))
 			{
 				mkdir($outDir, 0755, true);
 			}

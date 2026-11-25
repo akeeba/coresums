@@ -61,7 +61,7 @@ $app->command('dump [outdir] [--sources] [--no-sums] [--gzip]', 'command.dump')
 	->descriptions(
 		'Dump sums and/or sources as JSON data files.',
 		[
-			'outdir'    => 'The root folder where the structure of JSON files will be created in',
+			'outdir'    => 'The root folder where the structure of JSON files will be created in (default: tmp/dump)',
 			'--sources' => 'Create the CMS download sources JSON file',
 			'--no-sums' => 'Do not create the checksum JSON files',
 			'--gzip'    => 'Generate GZip–compressed JSON files instead of plain text ones',

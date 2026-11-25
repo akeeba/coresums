@@ -241,6 +241,72 @@ final class DumpEdgeCasesTest extends TestCase
 	}
 
 	/**
+	 * Without an output folder, Dump writes to its default folder, creating it if needed.
+	 */
+	public function testDumpCreatesMissingDefaultFolder(): void
+	{
+		$db         = $this->makeDatabase();
+		$defaultDir = $this->makeTempDir('coresums-dump-default-') . '/dump';
+
+		$this->seedSchema($db);
+		$this->seedSingleRow($db);
+
+		$exit = (new Dump($db, defaultOutDir: $defaultDir))(
+			new ArrayInput([]), new NullOutput(), null, true, false, false
+		);
+
+		$this->assertSame(0, $exit);
+		$this->assertFileExists($defaultDir . '/sources.json');
+		$this->assertFileExists($defaultDir . '/joomla/5.0.0/md5.json');
+	}
+
+	/**
+	 * Dumping into the default folder when it already exists must not raise warnings (it used to call mkdir() on the
+	 * existing folder).
+	 */
+	public function testDumpIntoExistingDefaultFolderRaisesNoWarnings(): void
+	{
+		$db         = $this->makeDatabase();
+		$defaultDir = $this->makeTempDir('coresums-dump-existing-default-');
+		$warnings   = [];
+
+		$this->seedSchema($db);
+		$this->seedSingleRow($db);
+
+		$level = error_reporting();
+
+		set_error_handler(
+			function (int $errno, string $message) use (&$warnings, $level): bool {
+				// Ignore errors silenced with @ (it lowers the error reporting level while the call runs)
+				if (error_reporting() !== $level)
+				{
+					return false;
+				}
+
+				$warnings[] = $message;
+
+				return true;
+			},
+			E_WARNING | E_NOTICE
+		);
+
+		try
+		{
+			$exit = (new Dump($db, defaultOutDir: $defaultDir))(
+				new ArrayInput([]), new NullOutput(), null, true, false, false
+			);
+		}
+		finally
+		{
+			restore_error_handler();
+		}
+
+		$this->assertSame(0, $exit);
+		$this->assertSame([], $warnings);
+		$this->assertFileExists($defaultDir . '/sources.json');
+	}
+
+	/**
 	 * The SELECT in dumpCmsVersionChecksums uses ORDER BY filename ASC and
 	 * loadAssocList('filename', 'hash'), so the resulting JSON object must
 	 * have its keys in alphabetical order regardless of insertion order.
