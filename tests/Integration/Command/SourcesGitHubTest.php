@@ -275,6 +275,37 @@ final class SourcesGitHubTest extends TestCase
 		$this->assertSame(1, $exit, 'A failed version must be reported through the exit code');
 	}
 
+	/**
+	 * An empty release list (e.g. a GitHub hiccup) must be handled without PHP warnings.
+	 */
+	public function testEmptyReleaseListRaisesNoWarnings(): void
+	{
+		$db       = $this->makeDatabase();
+		$sources  = $this->makeSources($db, $this->makeGitHubClientReturningPages([[]]));
+		$warnings = [];
+
+		set_error_handler(
+			function (int $errno, string $message) use (&$warnings): bool {
+				$warnings[] = $message;
+
+				return true;
+			},
+			E_WARNING | E_NOTICE
+		);
+
+		try
+		{
+			$exit = $sources(new ArrayInput([]), new NullOutput(), latest: true, process: true, wordpress: false);
+		}
+		finally
+		{
+			restore_error_handler();
+		}
+
+		$this->assertSame(0, $exit);
+		$this->assertSame([], $warnings);
+	}
+
 	private function insertSource(\Joomla\Database\DatabaseDriver $db, string $version, string $url): void
 	{
 		$source = (object) [

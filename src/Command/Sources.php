@@ -128,9 +128,9 @@ class Sources
 	 * @param   InputInterface   $input        Symfony Input object
 	 * @param   OutputInterface  $output       Symfony Output object
 	 *
-	 * @return array|mixed
+	 * @return  void
 	 */
-	private function iterateJoomlaGitHubReleases(array $allReleases, bool $process, InputInterface $input, OutputInterface $output): mixed
+	private function iterateJoomlaGitHubReleases(array $allReleases, bool $process, InputInterface $input, OutputInterface $output): void
 	{
 		$this->io->info('Locating Joomla! full installation ZIP files');
 
@@ -186,8 +186,6 @@ class Sources
 				$this->io->writeln('');
 			}
 		}
-
-		return $assets;
 	}
 
 	/**
