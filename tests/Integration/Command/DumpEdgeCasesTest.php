@@ -140,9 +140,8 @@ final class DumpEdgeCasesTest extends TestCase
 	}
 
 	/**
-	 * With sources but no checksums, Dump still creates the per-CMS/version
-	 * directories and writes empty-object JSON files (one per hash type).
-	 * Asserting the current behaviour, which the plan notes may be surprising.
+	 * With sources but no checksums, Dump must not write anything for that version. Dump never overwrites an
+	 * existing file, so an empty file written now would stay published even after the checksums are generated.
 	 */
 	public function testDumpWithEmptyDatabaseProducesNoArtifacts(): void
 	{
@@ -163,22 +162,81 @@ final class DumpEdgeCasesTest extends TestCase
 		$exit = $dump(new ArrayInput([]), new NullOutput(), $outDir, false, false, false);
 
 		$this->assertSame(0, $exit);
+		$this->assertDirectoryDoesNotExist($outDir . '/joomla/5.0.0');
+	}
 
-		// Behaviour: the per-version directory IS created and each hash type
-		// gets a file whose decoded content is an empty associative array (PHP
-		// emits "[]" for empty arrays via json_encode on loadAssocList of an
-		// empty result). Document and assert the literal output.
+	/**
+	 * Once the checksums of a version which had none are generated, the next dump publishes them.
+	 */
+	public function testDumpPublishesChecksumsGeneratedAfterAnEarlierDump(): void
+	{
+		$db     = $this->makeDatabase();
+		$outDir = $this->makeTempDir('coresums-dump-late-');
+
+		$this->seedSchema($db);
+
+		$source = (object) [
+			'cms'     => 'joomla',
+			'version' => '5.0.0',
+			'url'     => 'https://example.invalid/joomla-5.0.0.zip',
+		];
+		$db->insertObject('sources', $source);
+
+		$dump = new Dump($db);
+		$dump(new ArrayInput([]), new NullOutput(), $outDir, false, false, false);
+
+		$db->setQuery('DELETE FROM sources')->execute();
+		$this->seedSingleRow($db);
+
+		$dump(new ArrayInput([]), new NullOutput(), $outDir, false, false, false);
+
 		foreach (self::HASH_TYPES as $type)
 		{
-			$file = $outDir . '/joomla/5.0.0/' . $type . '.json';
-			$this->assertFileExists($file, sprintf('Empty DB still writes %s.json', $type));
-			$contents = file_get_contents($file);
-			$decoded  = json_decode((string) $contents, true);
-			$this->assertSame(
-				[],
-				$decoded,
-				sprintf('Empty DB produces empty payload for %s.json (got %s)', $type, var_export($contents, true))
-			);
+			$decoded = json_decode((string) file_get_contents($outDir . '/joomla/5.0.0/' . $type . '.json'), true);
+			$this->assertArrayHasKey('index.php', $decoded, sprintf('%s.json must hold the late checksums', $type));
+		}
+
+		$leftovers = glob($outDir . '/joomla/5.0.0/*.tmp');
+		$this->assertSame([], $leftovers, 'No temporary files may be left behind');
+	}
+
+	/**
+	 * Older versions of Dump wrote empty `[]` files for versions without checksums. Those must be replaced once the
+	 * checksums exist, or they stay published for good.
+	 */
+	public function testDumpReplacesEmptyFilesLeftByOlderVersions(): void
+	{
+		foreach ([false, true] as $gzip)
+		{
+			$db     = $this->makeDatabase();
+			$outDir = $this->makeTempDir('coresums-dump-heal-');
+
+			$this->seedSchema($db);
+			$this->seedSingleRow($db);
+
+			$cmsDir = $outDir . '/joomla/5.0.0';
+			mkdir($cmsDir, 0755, true);
+
+			foreach (self::HASH_TYPES as $type)
+			{
+				file_put_contents(
+					$cmsDir . '/' . $type . '.json' . ($gzip ? '.gz' : ''),
+					$gzip ? gzcompress('[]', 9, ZLIB_ENCODING_GZIP) : '[]'
+				);
+			}
+
+			(new Dump($db))(new ArrayInput([]), new NullOutput(), $outDir, false, false, $gzip);
+
+			foreach (self::HASH_TYPES as $type)
+			{
+				$contents = (string) file_get_contents($cmsDir . '/' . $type . '.json' . ($gzip ? '.gz' : ''));
+				$decoded  = json_decode($gzip ? gzdecode($contents) : $contents, true);
+
+				$this->assertArrayHasKey(
+					'index.php', $decoded,
+					sprintf('Empty %s file (gzip: %s) must be replaced', $type, $gzip ? 'yes' : 'no')
+				);
+			}
 		}
 	}
 

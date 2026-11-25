@@ -7,6 +7,7 @@
 
 namespace Akeeba\CoreSums\Command;
 
+use Akeeba\CoreSums\Database\Schema;
 use Akeeba\CoreSums\HttpFactory\HttpFactory;
 use Github\Client;
 use Joomla\Database\DatabaseDriver;
@@ -25,12 +26,23 @@ class Sources
 		readonly private Dump $dumpCommand
 	) {}
 
+	/**
+	 * Versions whose checksums could not be generated in this run.
+	 *
+	 * @var string[]
+	 */
+	private array $failures = [];
+
 	public function __invoke(
 		InputInterface $input, OutputInterface $output,
 		bool $latest = false, bool $process = false, ?string $dump = null, bool $joomla = true, bool $wordpress = true
 	)
 	{
 		$this->initIo($input, $output);
+
+		$this->failures = [];
+
+		Schema::ensureIndexes($this->db);
 
 		// Process Joomla! releases
 		if ($joomla)
@@ -48,6 +60,15 @@ class Sources
 		if (!empty($dump))
 		{
 			call_user_func($this->dumpCommand, $input, $output, $dump, true, false, true);
+		}
+
+		if (!empty($this->failures))
+		{
+			$this->io->error(
+				array_merge(['Could not generate the checksums of:'], $this->failures)
+			);
+
+			return 1;
 		}
 
 		return 0;
@@ -154,10 +175,9 @@ class Sources
 				$this->io->writeln('  Added to sources');
 			}
 
-			if ($updatedOrAdded && $process)
+			if ($process)
 			{
-				$this->io->writeln('  Processing');
-				call_user_func($this->generateCommand, $input, $output, 'joomla', $jVersion, false, true);
+				$this->processVersion('joomla', $jVersion, $updatedOrAdded, $input, $output);
 			}
 
 			if ($updatedOrAdded)
@@ -272,10 +292,9 @@ class Sources
 				$this->io->writeln('  Added to sources');
 			}
 
-			if ($updatedOrAdded && $process)
+			if ($process)
 			{
-				$this->io->writeln('  Processing');
-				call_user_func($this->generateCommand, $input, $output, 'wordpress', $version, false, true);
+				$this->processVersion('wordpress', $version, $updatedOrAdded, $input, $output);
 			}
 
 			if ($updatedOrAdded)
@@ -283,6 +302,76 @@ class Sources
 				$this->io->writeln('');
 			}
 		}
+	}
+
+	/**
+	 * Generate the checksums of a CMS version, if needed.
+	 *
+	 * A version is processed when its source is new or changed, but also when it has no checksums yet. The source is
+	 * recorded before its checksums are generated; if that run failed or was killed, this is how the next run
+	 * retries it.
+	 *
+	 * A failure is recorded and reported at the end, instead of aborting the run: one bad version must not stop the
+	 * other versions from being processed, or the checksums from being dumped.
+	 *
+	 * @param   string           $cms             The CMS
+	 * @param   string           $version         The CMS version
+	 * @param   bool             $updatedOrAdded  Was the version's source just added or changed?
+	 * @param   InputInterface   $input           Symfony Input object
+	 * @param   OutputInterface  $output          Symfony Output object
+	 *
+	 * @return  void
+	 */
+	private function processVersion(
+		string $cms, string $version, bool $updatedOrAdded, InputInterface $input, OutputInterface $output
+	): void
+	{
+		if (!$updatedOrAdded && $this->haveChecksumsFor($cms, $version))
+		{
+			return;
+		}
+
+		$this->io->writeln($updatedOrAdded ? '  Processing' : '  Processing (no checksums yet)');
+
+		try
+		{
+			call_user_func($this->generateCommand, $input, $output, $cms, $version, false, true);
+		}
+		catch (\Throwable $e)
+		{
+			$this->failures[] = sprintf('%s %s: %s', $cms, $version, $e->getMessage());
+
+			$this->io->error(
+				sprintf('Could not generate the checksums of %s %s: %s', $cms, $version, $e->getMessage())
+			);
+		}
+	}
+
+	/**
+	 * Are there any checksums for this CMS version?
+	 *
+	 * @param   string  $cms      The CMS
+	 * @param   string  $version  The CMS version
+	 *
+	 * @return  bool
+	 */
+	private function haveChecksumsFor(string $cms, string $version): bool
+	{
+		$db    = $this->db;
+		$query = $db->getQuery(true)
+			->select('1')
+			->from($db->quoteName('checksums'))
+			->where(
+				[
+					$db->quoteName('cms') . ' = :cms',
+					$db->quoteName('version') . ' = :version',
+				]
+			)
+			->bind(':cms', $cms)
+			->bind(':version', $version)
+			->setLimit(1);
+
+		return (bool) $db->setQuery($query)->loadResult();
 	}
 
 	/**

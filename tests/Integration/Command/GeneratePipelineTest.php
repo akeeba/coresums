@@ -13,7 +13,12 @@ use Akeeba\CoreSums\Command\Generate;
 use Akeeba\CoreSums\Container\Container;
 use Akeeba\CoreSums\HttpFactory\HttpFactory;
 use Akeeba\CoreSums\Tests\Fixtures\FixtureBuilder;
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Promise\Create;
+use GuzzleHttp\RequestOptions;
 use Joomla\Database\Sqlite\SqliteDriver;
+use Psr\Http\Message\RequestInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Input\ArrayInput;
@@ -220,6 +225,93 @@ final class GeneratePipelineTest extends TestCase
 			->setQuery('SELECT md5 FROM checksums WHERE cms = "joomla" AND version = "1.0.0" AND filename = "index.php"')
 			->loadResult();
 		$this->assertSame($expected['index.php']['md5'], $row);
+	}
+
+	/**
+	 * A run that dies half-way through a version must leave that version's previous checksums intact and must not
+	 * leave a partial set behind; otherwise --new treats the partial set as complete and never fixes it.
+	 */
+	public function testFailureMidVersionLeavesPreviousChecksumsUntouched(): void
+	{
+		$db = $this->makeReadyDatabase();
+		$this->insertSource($db, 'joomla', '1.0.0', self::JOOMLA_URL);
+		$this->stageArchive(self::JOOMLA_URL, __DIR__ . '/../../fixtures/archives/joomla-fixture-1.0.0.tar.gz');
+
+		$stale = (object) [
+			'cms'           => 'joomla',
+			'version'       => '1.0.0',
+			'filename'      => 'stale.php',
+			'md5'           => str_repeat('a', 32),
+			'sha1'          => str_repeat('a', 40),
+			'sha256'        => str_repeat('a', 64),
+			'sha512'        => str_repeat('a', 128),
+			'md5_squash'    => str_repeat('b', 32),
+			'sha1_squash'   => str_repeat('b', 40),
+			'sha256_squash' => str_repeat('b', 64),
+			'sha512_squash' => str_repeat('b', 128),
+		];
+		$db->insertObject('checksums', $stale);
+
+		// Make the insert of the last fixture file fail, after the others went in.
+		$db->setQuery(
+			"CREATE TRIGGER fail_mid_version BEFORE INSERT ON checksums"
+			. " WHEN NEW.filename = 'templates/cassiopeia/templateDetails.xml'"
+			. " BEGIN SELECT RAISE(ABORT, 'simulated failure'); END"
+		)->execute();
+
+		try
+		{
+			$this->makeGenerate($db)(new ArrayInput([]), new NullOutput(), 'joomla', '1.0.0', false, false);
+
+			$this->fail('Generate must propagate the failure');
+		}
+		catch (\RuntimeException $e)
+		{
+			$this->assertStringContainsString('simulated failure', $e->getMessage());
+		}
+
+		$rows = $db
+			->setQuery('SELECT filename FROM checksums WHERE cms = "joomla" AND version = "1.0.0"')
+			->loadColumn();
+
+		$this->assertSame(['stale.php'], $rows, 'Previous checksums must survive and no partial set may be left');
+	}
+
+	/**
+	 * A download that dies mid-transfer must not leave a file which the next run mistakes for a complete archive.
+	 */
+	public function testInterruptedDownloadLeavesNothingToReuse(): void
+	{
+		$url = 'https://fixtures.invalid/joomla-interrupted.zip';
+		$db  = $this->makeReadyDatabase();
+		$this->insertSource($db, 'joomla', '1.0.1', $url);
+
+		$tempFile               = realpath(self::PROJECT_TMP) . DIRECTORY_SEPARATOR . md5($url);
+		$this->stagedTmpFiles[] = $tempFile;
+		$this->stagedTmpFiles[] = $tempFile . '.part';
+
+		$handler = function (RequestInterface $request, array $options) {
+			file_put_contents($options[RequestOptions::SINK], 'PARTIAL ARCHIVE DATA');
+
+			return Create::rejectionFor(new ConnectException('Connection reset by peer', $request));
+		};
+
+		$httpFactory = $this->createMock(HttpFactory::class);
+		$httpFactory->method('makeClient')->willReturn(new Client(['handler' => $handler]));
+
+		try
+		{
+			(new Generate($db, $httpFactory))(new ArrayInput([]), new NullOutput(), 'joomla', '1.0.1', false, true);
+
+			$this->fail('Generate must propagate the download failure');
+		}
+		catch (ConnectException)
+		{
+			// Expected
+		}
+
+		$this->assertFileDoesNotExist($tempFile, 'A partial download must not be left where Generate looks for archives');
+		$this->assertFileDoesNotExist($tempFile . '.part', 'A partial download must be cleaned up');
 	}
 
 	// -----------------------------------------------------------------

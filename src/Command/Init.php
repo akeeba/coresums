@@ -7,6 +7,7 @@
 
 namespace Akeeba\CoreSums\Command;
 
+use Akeeba\CoreSums\Database\Schema;
 use Joomla\Database\DatabaseDriver;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -33,6 +34,8 @@ class Init
 
 		$sqlCommands = file_get_contents($sqlPath . '/checksums.sql');
 		$db->setQuery($sqlCommands)->execute();
+
+		Schema::ensureIndexes($db);
 
 		$this->io->info('Importing pre-existing sources');
 

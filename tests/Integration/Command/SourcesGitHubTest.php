@@ -71,18 +71,21 @@ final class SourcesGitHubTest extends TestCase
 		return $client;
 	}
 
-	private function makeSources(\Joomla\Database\DatabaseDriver $db, GitHubClient $github): Sources
+	private function makeSources(
+		\Joomla\Database\DatabaseDriver $db, GitHubClient $github, ?Generate $generate = null, ?Dump $dump = null
+	): Sources
 	{
-		// Init the sources table.
+		// Init the tables.
 		$db->setQuery(file_get_contents(__DIR__ . '/../../../assets/sources.sql'))->execute();
+		$db->setQuery(file_get_contents(__DIR__ . '/../../../assets/checksums.sql'))->execute();
 
 		// HttpFactory not used when wordpress=false; pass a real instance but it won't be called.
 		// We still need a non-null typed object: build it without invoking it.
 		$httpFactory = $this->createMock(HttpFactory::class);
 
 		// Generate / Dump are typed but not invoked when --process is false.
-		$generate = $this->createMock(Generate::class);
-		$dump     = $this->createMock(Dump::class);
+		$generate ??= $this->createMock(Generate::class);
+		$dump     ??= $this->createMock(Dump::class);
 
 		return new Sources($db, $httpFactory, $github, $generate, $dump);
 	}
@@ -179,5 +182,106 @@ final class SourcesGitHubTest extends TestCase
 			2,
 			(int) $db->setQuery('SELECT COUNT(*) FROM sources WHERE cms = "joomla"')->loadResult()
 		);
+	}
+
+	/**
+	 * The source row is recorded before Generate runs. If that run dies, the next run must still process the
+	 * version, even though the source is already known.
+	 */
+	public function testProcessRetriesKnownSourceWithoutChecksums(): void
+	{
+		$db      = $this->makeDatabase();
+		$release = $this->makeReleaseFixture('5.0.0');
+
+		$generate = $this->createMock(Generate::class);
+		$generate->expects($this->once())
+			->method('__invoke')
+			->with($this->anything(), $this->anything(), 'joomla', '5.0.0', false, true)
+			->willReturn(0);
+
+		$sources = $this->makeSources($db, $this->makeGitHubClientReturningPages([[$release]]), $generate);
+		$this->insertSource($db, '5.0.0', $release['assets'][0]['browser_download_url']);
+
+		$exit = $sources(new ArrayInput([]), new NullOutput(), latest: true, process: true, wordpress: false);
+
+		$this->assertSame(0, $exit);
+	}
+
+	public function testProcessSkipsKnownSourceWithChecksums(): void
+	{
+		$db      = $this->makeDatabase();
+		$release = $this->makeReleaseFixture('5.0.0');
+
+		$generate = $this->createMock(Generate::class);
+		$generate->expects($this->never())->method('__invoke');
+
+		$sources = $this->makeSources($db, $this->makeGitHubClientReturningPages([[$release]]), $generate);
+		$this->insertSource($db, '5.0.0', $release['assets'][0]['browser_download_url']);
+
+		$checksum = (object) [
+			'cms'           => 'joomla',
+			'version'       => '5.0.0',
+			'filename'      => 'index.php',
+			'md5'           => str_repeat('a', 32),
+			'sha1'          => str_repeat('a', 40),
+			'sha256'        => str_repeat('a', 64),
+			'sha512'        => str_repeat('a', 128),
+			'md5_squash'    => str_repeat('b', 32),
+			'sha1_squash'   => str_repeat('b', 40),
+			'sha256_squash' => str_repeat('b', 64),
+			'sha512_squash' => str_repeat('b', 128),
+		];
+		$db->insertObject('checksums', $checksum);
+
+		$exit = $sources(new ArrayInput([]), new NullOutput(), latest: true, process: true, wordpress: false);
+
+		$this->assertSame(0, $exit);
+	}
+
+	/**
+	 * One version failing (e.g. a download error) must not stop the other versions from being processed, nor the
+	 * dump from being written. The command still reports the failure through its exit code.
+	 */
+	public function testFailingVersionDoesNotStopOtherVersionsOrTheDump(): void
+	{
+		$db        = $this->makeDatabase();
+		$processed = [];
+
+		$generate = $this->createMock(Generate::class);
+		$generate->method('__invoke')->willReturnCallback(
+			function ($input, $output, string $cms, string $version) use (&$processed): int {
+				$processed[] = $version;
+
+				if ($version === '5.0.1')
+				{
+					throw new \RuntimeException('Simulated download failure');
+				}
+
+				return 0;
+			}
+		);
+
+		$dump = $this->createMock(Dump::class);
+		$dump->expects($this->once())->method('__invoke')->willReturn(0);
+
+		$pages   = [[$this->makeReleaseFixture('5.0.1'), $this->makeReleaseFixture('5.0.0')]];
+		$sources = $this->makeSources($db, $this->makeGitHubClientReturningPages($pages), $generate, $dump);
+
+		$exit = $sources(
+			new ArrayInput([]), new NullOutput(), latest: true, process: true, dump: '/nonexistent', wordpress: false
+		);
+
+		$this->assertSame(['5.0.1', '5.0.0'], $processed);
+		$this->assertSame(1, $exit, 'A failed version must be reported through the exit code');
+	}
+
+	private function insertSource(\Joomla\Database\DatabaseDriver $db, string $version, string $url): void
+	{
+		$source = (object) [
+			'cms'     => 'joomla',
+			'version' => $version,
+			'url'     => $url,
+		];
+		$db->insertObject('sources', $source);
 	}
 }

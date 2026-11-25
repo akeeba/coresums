@@ -7,6 +7,7 @@
 
 namespace Akeeba\CoreSums\Command;
 
+use Akeeba\CoreSums\Database\Schema;
 use Joomla\Database\DatabaseDriver;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -24,6 +25,8 @@ class Dump
 	)
 	{
 		$this->initIo($input, $output);
+
+		Schema::ensureIndexes($this->db);
 
 		$outDir = !empty($outDir) ? realpath($outDir) : false;
 
@@ -128,6 +131,39 @@ class Dump
 	private function dumpCmsVersionChecksums($cms, $version, string $outDir, bool $gzip = false)
 	{
 		$subDir = $outDir . '/' . $cms . '/' . $version;
+		$types  = [
+			'md5',
+			'sha1',
+			'sha256',
+			'sha512',
+			'md5_squash',
+			'sha1_squash',
+			'sha256_squash',
+			'sha512_squash',
+		];
+
+		$missingTypes = array_filter(
+			$types,
+			fn(string $type) => !$this->isDumped($subDir . '/' . $type . '.json' . ($gzip ? '.gz' : ''), $gzip)
+		);
+
+		if (empty($missingTypes))
+		{
+			$this->io->writeln('  -> already dumped ↩️');
+
+			return;
+		}
+
+		/**
+		 * Existing files are never overwritten. If we wrote empty files for a version whose checksums have not been
+		 * generated yet, they would stay published even after the checksums become available.
+		 */
+		if (!$this->haveChecksumsFor($cms, $version))
+		{
+			$this->io->writeln('  -> no checksums yet; skipping ⏭️');
+
+			return;
+		}
 
 		if (!is_dir($subDir))
 		{
@@ -138,29 +174,18 @@ class Dump
 
 		$this->io->write('  -> ');
 
-		foreach (
-			[
-				'md5',
-				'sha1',
-				'sha256',
-				'sha512',
-				'md5_squash',
-				'sha1_squash',
-				'sha256_squash',
-				'sha512_squash',
-			] as $type
-		)
+		foreach ($types as $type)
 		{
 			$this->io->write(' ' . $type);
 
-			$targetFile = $subDir . '/' . $type . '.json' . ($gzip ? '.gz' : '');
-
-			if (file_exists($targetFile))
+			if (!in_array($type, $missingTypes, true))
 			{
 				$this->io->write('↩️');
 
 				continue;
 			}
+
+			$targetFile = $subDir . '/' . $type . '.json' . ($gzip ? '.gz' : '');
 
 			$query = $db->getQuery(true)
 				->select(
@@ -186,7 +211,17 @@ class Dump
 				$json = gzcompress($json, 9, ZLIB_ENCODING_GZIP);
 			}
 
-			$result = file_put_contents($targetFile, $json);
+			/**
+			 * Write to a temporary file and rename it into place, so that an interrupted run never leaves a truncated
+			 * file behind. Since existing files are skipped, a truncated file would otherwise be permanent.
+			 */
+			$tempFile = $targetFile . '.tmp';
+			$result   = file_put_contents($tempFile, $json) !== false && rename($tempFile, $targetFile);
+
+			if (!$result)
+			{
+				@unlink($tempFile);
+			}
 
 			$this->io->write($result ? '✅' : '❌');
 		}
@@ -194,4 +229,63 @@ class Dump
 		$this->io->writeln('');
 	}
 
+	/**
+	 * Does this checksums file already hold a usable dump?
+	 *
+	 * Older versions of Dump wrote an empty `[]` file for a version without checksums, and existing files are never
+	 * overwritten; such a file would stay published even after the checksums are generated. Treat it, or a tiny file
+	 * which does not decode, as missing. Only files of a few dozen bytes are read, so this stays cheap.
+	 *
+	 * @param   string  $file  The checksums file
+	 * @param   bool    $gzip  Is the file GZip-compressed?
+	 *
+	 * @return  bool
+	 */
+	private function isDumped(string $file, bool $gzip): bool
+	{
+		if (!file_exists($file))
+		{
+			return false;
+		}
+
+		if (filesize($file) > 64)
+		{
+			return true;
+		}
+
+		$contents = @file_get_contents($file);
+
+		if ($gzip && $contents !== false)
+		{
+			$contents = @gzdecode($contents);
+		}
+
+		if ($contents === false)
+		{
+			return false;
+		}
+
+		$decoded = json_decode($contents, true);
+
+		return is_array($decoded) && !empty($decoded);
+	}
+
+	private function haveChecksumsFor(string $cms, string $version): bool
+	{
+		$db    = $this->db;
+		$query = $db->getQuery(true)
+			->select('1')
+			->from($db->quoteName('checksums'))
+			->where(
+				[
+					$db->quoteName('cms') . ' = :cms',
+					$db->quoteName('version') . ' = :version',
+				]
+			)
+			->bind(':cms', $cms)
+			->bind(':version', $version)
+			->setLimit(1);
+
+		return (bool) $db->setQuery($query)->loadResult();
+	}
 }

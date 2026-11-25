@@ -7,6 +7,7 @@
 
 namespace Akeeba\CoreSums\Command;
 
+use Akeeba\CoreSums\Database\Schema;
 use Akeeba\CoreSums\HttpFactory\HttpFactory;
 use GuzzleHttp\RequestOptions;
 use Joomla\Database\DatabaseDriver;
@@ -33,6 +34,8 @@ class Generate
 	)
 	{
 		$this->initIo($input, $output);
+
+		Schema::ensureIndexes($this->db);
 
 		if (empty($cmsVersion) && !$all)
 		{
@@ -149,19 +152,35 @@ class Generate
 				sprintf('Download %s %s from %s', $this->getCmsName($cms), $version, $downloadUrl)
 			);
 
-			// Download the archive
-			$client   = $this->httpFactory->makeClient(cache: false);
-			$response = $client->request(
-				'GET', $downloadUrl, [
-					RequestOptions::HEADERS => [
-						'User-Agent' => 'CoreSums/1.0'
-					],
-					RequestOptions::SINK => $tempFile,
-				]
-			);
+			/**
+			 * Download to a separate file and move it into place only once complete. A file left at $tempFile is
+			 * reused by the next run, so it must never be a partial download.
+			 */
+			$partFile = $tempFile . '.part';
+
+			try
+			{
+				$client   = $this->httpFactory->makeClient(cache: false);
+				$response = $client->request(
+					'GET', $downloadUrl, [
+						RequestOptions::HEADERS => [
+							'User-Agent' => 'CoreSums/1.0'
+						],
+						RequestOptions::SINK => $partFile,
+					]
+				);
+			}
+			catch (\Throwable $e)
+			{
+				@unlink($partFile);
+
+				throw $e;
+			}
 
 			if ($response->getStatusCode() != 200)
 			{
+				@unlink($partFile);
+
 				$this->io->error(
 					[
 						sprintf(
@@ -173,8 +192,40 @@ class Generate
 
 				return;
 			}
+
+			rename($partFile, $tempFile);
 		}
 
+		try
+		{
+			$this->calculateChecksums($cms, $version, $tempFile);
+		}
+		catch (\Throwable $e)
+		{
+			// The archive may be the problem (e.g. corrupt); make the next run download it afresh.
+			@unlink($tempFile);
+
+			throw $e;
+		}
+
+		unlink($tempFile);
+	}
+
+	/**
+	 * Calculate and store the checksums of all files in a CMS version's archive.
+	 *
+	 * All database changes happen in one transaction. A failure, or the process being killed, leaves the version's
+	 * previous checksums in place instead of a partial set, which `--new` would mistake for a complete one. One
+	 * transaction is also much faster than SQLite committing each of the ~8000 inserts on its own.
+	 *
+	 * @param   string  $cms       The CMS
+	 * @param   string  $version   The CMS version
+	 * @param   string  $tempFile  The downloaded archive
+	 *
+	 * @return  void
+	 */
+	private function calculateChecksums(string $cms, string $version, string $tempFile): void
+	{
 		// The archive library fails to auto-detect tar.gz, so we'll give it a little push
 		$mimeType = (new FinfoMimeTypeDetector())->detectMimeTypeFromFile($tempFile);
 
@@ -199,6 +250,26 @@ class Generate
 		], driver: $driver
 		);
 
+		$db = $this->db;
+
+		$db->transactionStart();
+
+		try
+		{
+			$this->storeChecksums($archive, $cms, $version);
+
+			$db->transactionCommit();
+		}
+		catch (\Throwable $e)
+		{
+			$db->transactionRollback();
+
+			throw $e;
+		}
+	}
+
+	private function storeChecksums(UnifiedArchive $archive, string $cms, string $version): void
+	{
 		// Remove existing checksums
 		$db    = $this->db;
 		$query = $db->getQuery(true)->delete($db->quoteName('checksums'))->where(
@@ -252,10 +323,6 @@ class Generate
 		}
 
 		$progressBar->finish();
-
-		unset($archive);
-
-		unlink($tempFile);
 	}
 
 	private function getDownloadURL(string $cms, string $version): ?string
