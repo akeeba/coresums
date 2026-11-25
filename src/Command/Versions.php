@@ -28,7 +28,7 @@ class Versions
 		$cms = ($cms ?? '') ?: 'joomla';
 
 		$db    = $this->db;
-		$query = $db->getQuery(true)
+		$query = $db->createQuery()
 			->select([
 				'DISTINCT ' . $db->quoteName('version')
 			])

@@ -28,12 +28,13 @@ class Init
 
 		$this->io->info('Initialising database');
 
+		// Query objects, not strings: given a string, setQuery() calls the deprecated getQuery(true) internally.
 		$db          = $this->db;
 		$sqlCommands = file_get_contents($sqlPath . '/sources.sql');
-		$db->setQuery($sqlCommands)->execute();
+		$db->setQuery($db->createQuery()->setQuery($sqlCommands))->execute();
 
 		$sqlCommands = file_get_contents($sqlPath . '/checksums.sql');
-		$db->setQuery($sqlCommands)->execute();
+		$db->setQuery($db->createQuery()->setQuery($sqlCommands))->execute();
 
 		Schema::ensureIndexes($db);
 
@@ -75,7 +76,7 @@ class Init
 
 		foreach ($data as $object)
 		{
-			$query = $db->getQuery(true)
+			$query = $db->createQuery()
 				->delete($db->quoteName('sources'))
 				->where(
 					[
@@ -96,7 +97,7 @@ class Init
 	private function importAllChecksums(false|string $sourceFolder)
 	{
 		$db    = $this->db;
-		$query = $db->getQuery(true)
+		$query = $db->createQuery()
 			->select(
 				[
 					$db->quoteName('cms'),

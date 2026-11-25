@@ -79,7 +79,7 @@ class Generate
 	private function haveChecksumsFor(string $cms, string $version): bool
 	{
 		$db    = $this->db;
-		$query = $db->getQuery(true)->select('COUNT(*)')->from($db->quoteName('checksums'))->where(
+		$query = $db->createQuery()->select('COUNT(*)')->from($db->quoteName('checksums'))->where(
 			[
 				$db->quoteName('cms') . ' = :cms',
 				$db->quoteName('version') . ' = :version',
@@ -94,7 +94,7 @@ class Generate
 	private function processAll(string $cms, bool $new = false): void
 	{
 		$db       = $this->db;
-		$query    = $db->getQuery(true)->select($db->quoteName('version'))->from($db->quoteName('sources'))->where(
+		$query    = $db->createQuery()->select($db->quoteName('version'))->from($db->quoteName('sources'))->where(
 				$db->quoteName('cms') . ' = :cms'
 			)->bind(
 				':cms', $cms
@@ -272,7 +272,7 @@ class Generate
 	{
 		// Remove existing checksums
 		$db    = $this->db;
-		$query = $db->getQuery(true)->delete($db->quoteName('checksums'))->where(
+		$query = $db->createQuery()->delete($db->quoteName('checksums'))->where(
 				[
 					$db->quoteName('cms') . ' = :cms',
 					$db->quoteName('version') . ' = :version',
@@ -328,7 +328,7 @@ class Generate
 	private function getDownloadURL(string $cms, string $version): ?string
 	{
 		$db    = $this->db;
-		$query = $db->getQuery(true)->select($db->quoteName('url'))->from($db->quoteName('sources'))->where(
+		$query = $db->createQuery()->select($db->quoteName('url'))->from($db->quoteName('sources'))->where(
 				[
 					$db->quoteName('cms') . ' = :cms',
 					$db->quoteName('version') . ' = :version',

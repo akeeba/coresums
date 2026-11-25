@@ -358,7 +358,7 @@ class Sources
 	private function haveChecksumsFor(string $cms, string $version): bool
 	{
 		$db    = $this->db;
-		$query = $db->getQuery(true)
+		$query = $db->createQuery()
 			->select('1')
 			->from($db->quoteName('checksums'))
 			->where(
@@ -389,7 +389,7 @@ class Sources
 	{
 		$db = $this->db;
 
-		$query = $db->getQuery(true)
+		$query = $db->createQuery()
 			->select($db->quoteName('url'))
 			->from($db->quoteName('sources'))
 			->where(
@@ -408,7 +408,7 @@ class Sources
 			return false;
 		}
 
-		$query = $db->getQuery(true)
+		$query = $db->createQuery()
 			->delete($db->quoteName('sources'))
 			->where(
 				[

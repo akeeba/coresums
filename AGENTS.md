@@ -16,4 +16,5 @@ Read the matching file before starting that kind of work.
 
 | File | Read it before… |
 |---|---|
+| `.claude/memory/database-api.md` | writing or changing any database query |
 | `.claude/memory/production.md` | diagnosing a missing or wrong published checksum, changing a query on `checksums`, or changing the schema |

@@ -33,11 +33,14 @@ final class Schema
 			return;
 		}
 
+		// A query object, not a string: given a string, setQuery() calls the deprecated getQuery(true) internally.
 		$db->setQuery(
-			'CREATE INDEX IF NOT EXISTS ' . $db->quoteName('checksums_cms_version_filename')
-			. ' ON ' . $db->quoteName('checksums') . ' ('
-			. implode(', ', $db->quoteName(['cms', 'version', 'filename']))
-			. ')'
+			$db->createQuery()->setQuery(
+				'CREATE INDEX IF NOT EXISTS ' . $db->quoteName('checksums_cms_version_filename')
+				. ' ON ' . $db->quoteName('checksums') . ' ('
+				. implode(', ', $db->quoteName(['cms', 'version', 'filename']))
+				. ')'
+			)
 		)->execute();
 	}
 }

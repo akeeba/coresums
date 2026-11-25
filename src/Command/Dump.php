@@ -104,7 +104,7 @@ class Dump
 		@mkdir(dirname($targetFile), 0755, true);
 
 		$db    = $this->db;
-		$query = $db->getQuery(true)
+		$query = $db->createQuery()
 			->select('*')
 			->from('sources');
 		$data  = $db->setQuery($query)->loadAssocList();
@@ -126,7 +126,7 @@ class Dump
 	private function dumpAllChecksums(string $outDir, bool $gzip = false)
 	{
 		$db    = $this->db;
-		$query = $db->getQuery(true)
+		$query = $db->createQuery()
 			->select(
 				[
 					$db->quoteName('cms'),
@@ -207,7 +207,7 @@ class Dump
 
 			$targetFile = $subDir . '/' . $type . '.json' . ($gzip ? '.gz' : '');
 
-			$query = $db->getQuery(true)
+			$query = $db->createQuery()
 				->select(
 					[
 						$db->quoteName('filename'),
@@ -293,7 +293,7 @@ class Dump
 	private function haveChecksumsFor(string $cms, string $version): bool
 	{
 		$db    = $this->db;
-		$query = $db->getQuery(true)
+		$query = $db->createQuery()
 			->select('1')
 			->from($db->quoteName('checksums'))
 			->where(
