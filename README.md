@@ -37,10 +37,11 @@ composer install
 vendor/bin/phpunit
 ```
 
-You can also use the Composer script alias:
+You can also use the Composer script alias, or Phing:
 
 ```bash
 composer test
+phing test
 ```
 
 ### Test layout

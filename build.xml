@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ @package   coresums
+  ~ @copyright Copyright (c)2023-2026 Nicholas K. Dionysopoulos / Akeeba Ltd
+  ~ @license   https://www.gnu.org/licenses/agpl-3.0.txt GNU Affero General Public License, version 3 or later
+  -->
+<project name="coresums" default="test" basedir=".">
+	<target name="test" description="Run the unit and integration test suites (delegates to composer test)">
+		<exec executable="composer" dir="${phing.dir}" checkreturn="true" passthru="true">
+			<arg value="test"/>
+		</exec>
+	</target>
+</project>
