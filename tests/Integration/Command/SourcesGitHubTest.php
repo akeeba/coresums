@@ -306,6 +306,26 @@ final class SourcesGitHubTest extends TestCase
 		$this->assertSame([], $warnings);
 	}
 
+	/**
+	 * A failed dump (e.g. a wrong --dump folder) must be reported through the exit code.
+	 */
+	public function testFailedDumpIsReportedThroughTheExitCode(): void
+	{
+		$db   = $this->makeDatabase();
+		$dump = $this->createMock(Dump::class);
+		$dump->expects($this->once())->method('__invoke')->willReturn(1);
+
+		$sources = $this->makeSources(
+			$db, $this->makeGitHubClientReturningPages([[$this->makeReleaseFixture('5.0.0')]]), dump: $dump
+		);
+
+		$exit = $sources(
+			new ArrayInput([]), new NullOutput(), latest: true, process: false, dump: '/nonexistent', wordpress: false
+		);
+
+		$this->assertSame(1, $exit);
+	}
+
 	private function insertSource(\Joomla\Database\DatabaseDriver $db, string $version, string $url): void
 	{
 		$source = (object) [

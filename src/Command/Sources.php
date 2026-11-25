@@ -57,9 +57,11 @@ class Sources
 		}
 
 		// Should I dump the checksums to disk?
+		$dumpResult = 0;
+
 		if (!empty($dump))
 		{
-			call_user_func($this->dumpCommand, $input, $output, $dump, true, false, true);
+			$dumpResult = call_user_func($this->dumpCommand, $input, $output, $dump, true, false, true);
 		}
 
 		if (!empty($this->failures))
@@ -71,7 +73,7 @@ class Sources
 			return 1;
 		}
 
-		return 0;
+		return $dumpResult === 0 ? 0 : 1;
 	}
 
 	/**

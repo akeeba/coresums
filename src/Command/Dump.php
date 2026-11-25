@@ -35,9 +35,22 @@ class Dump
 
 		Schema::ensureIndexes($this->db);
 
-		$outDir = !empty($outDir) ? realpath($outDir) : false;
+		if (!empty($outDir))
+		{
+			/**
+			 * A folder which does not exist is an error, not a reason to fall back to the default folder. When
+			 * publishing, a wrong path would otherwise publish nothing and report nothing.
+			 */
+			if (!is_dir($outDir))
+			{
+				$this->io->error(sprintf('The output folder %s does not exist.', $outDir));
 
-		if ($outDir === false)
+				return 1;
+			}
+
+			$outDir = realpath($outDir);
+		}
+		else
 		{
 			$outDir = $this->defaultOutDir ?? __DIR__ . '/../../tmp/dump';
 

@@ -34,7 +34,7 @@ $app->command('sources [-l|--latest] [-p|--process] [-d|--dump=]', 'command.sour
 				[
 						'--latest'    => 'Only go through the 30 latest releases',
 						'--process'   => 'Create checksums for the sources found',
-						'--dump'      => 'Dump (gzipped) JSON files for the sources found into this base folder',
+						'--dump'      => 'Dump (gzipped) JSON files for the sources found into this base folder, which must exist',
 				]
 		)
 		->addOption('joomla', 'j', \Silly\Input\InputOption::VALUE_NEGATABLE, 'Discover Joomla! releases (default)', true)
@@ -61,7 +61,7 @@ $app->command('dump [outdir] [--sources] [--no-sums] [--gzip]', 'command.dump')
 	->descriptions(
 		'Dump sums and/or sources as JSON data files.',
 		[
-			'outdir'    => 'The root folder where the structure of JSON files will be created in (default: tmp/dump)',
+			'outdir'    => 'The existing root folder where the structure of JSON files will be created in (default: tmp/dump)',
 			'--sources' => 'Create the CMS download sources JSON file',
 			'--no-sums' => 'Do not create the checksum JSON files',
 			'--gzip'    => 'Generate GZip–compressed JSON files instead of plain text ones',

@@ -307,6 +307,28 @@ final class DumpEdgeCasesTest extends TestCase
 	}
 
 	/**
+	 * An output folder which does not exist is an error. It must not silently fall back to the default folder: in
+	 * production that would publish nothing and report nothing.
+	 */
+	public function testDumpRefusesMissingOutputFolder(): void
+	{
+		$db         = $this->makeDatabase();
+		$base       = $this->makeTempDir('coresums-dump-missing-');
+		$defaultDir = $base . '/default';
+
+		$this->seedSchema($db);
+		$this->seedSingleRow($db);
+
+		$exit = (new Dump($db, defaultOutDir: $defaultDir))(
+			new ArrayInput([]), new NullOutput(), $base . '/does-not-exist', true, false, false
+		);
+
+		$this->assertSame(1, $exit);
+		$this->assertDirectoryDoesNotExist($base . '/does-not-exist');
+		$this->assertDirectoryDoesNotExist($defaultDir, 'Dump must not fall back to the default folder');
+	}
+
+	/**
 	 * The SELECT in dumpCmsVersionChecksums uses ORDER BY filename ASC and
 	 * loadAssocList('filename', 'hash'), so the resulting JSON object must
 	 * have its keys in alphabetical order regardless of insertion order.
